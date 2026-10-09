@@ -1,8 +1,11 @@
 import argparse
 import os
+import time
+import httpx
 
 from dotenv import load_dotenv
 from google import genai
+from google.genai import errors
 
 SYSTEM_PROMPTS = {
     "summarize": """
@@ -82,13 +85,24 @@ def main():
     if args.few_shot and args.mode == "rewrite-formal":
         selected_prompt += "\n\n" + FEW_SHOT_EXAMPLES
 
-    response = client.models.generate_content(
-        model="gemini-3.8-flash",
-        contents=args.text,
-        config={
-            "system_instruction": selected_prompt
-        }
-    )
+    try:
+        response = generate_with_retry(args.text, selected_prompt)
+
+    except errors.APIError as exc:
+        status_code = getattr(exc, "code", None)
+
+        if status_code == 429:
+            print("Error: Gemini rate limit or quota reached. Please try again later.")
+        elif status_code in {500, 502, 503, 504}:
+            print("Error: Gemini is temporarily unavailable. Please try again later.")
+        else:
+            print(f"Error: Gemini API request failed. Details: {exc}")
+
+        return
+
+    except httpx.TimeoutException:
+        print("Error: The request timed out after multiple attempts. Please try again.")
+        return
 
     
     print(response.text)
@@ -111,5 +125,51 @@ def main():
         print("\nToken usage metadata is unavailable.")
 
 
+def generate_with_retry(text, selected_prompt, max_attempts=3):
+    for attempt in range(1, max_attempts + 1):
+        try:
+            return client.models.generate_content(
+                model="gemini-3.8-flash",
+                contents=text,
+                config={
+                    "system_instruction": selected_prompt
+                }
+            )
+
+        except errors.APIError as exc:
+            status_code = getattr(exc, "code", None)
+
+            if status_code is None:
+                status_code = getattr(exc, "status_code", None)
+
+            retryable_codes = {429, 500, 502, 503, 504}
+
+            if status_code not in retryable_codes:
+                raise
+
+            if attempt == max_attempts:
+                raise
+
+            wait_seconds = 2 ** attempt
+
+            print(
+                f"Gemini API error {status_code}. "
+                f"Retrying in {wait_seconds} seconds "
+                f"(attempt {attempt + 1}/{max_attempts})..."
+            )
+            time.sleep(wait_seconds)
+
+        except httpx.TimeoutException:
+            if attempt == max_attempts:
+                raise
+
+            wait_seconds = 2 ** attempt
+
+            print(
+                f"Request timed out. Retrying in {wait_seconds} seconds "
+                f"(attempt {attempt + 1}/{max_attempts})..."
+            )
+            time.sleep(wait_seconds)
 if __name__ == "__main__":
     main()
+    
