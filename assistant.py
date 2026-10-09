@@ -31,6 +31,19 @@ Preserve the important meaning of the original text.
 """
 }
 
+
+FEW_SHOT_EXAMPLES = """
+Example 1
+
+Informal input: hey can you send me the report
+Formal output: Could you please send me the report?
+
+Example 2
+
+Informal input: i need the files today so send them asap
+Formal output: I would appreciate it if you could send me the files today as soon as possible.
+"""
+
 load_dotenv()
 
 api_key = os.getenv("GEMINI_API_KEY")
@@ -57,9 +70,17 @@ def main():
         help="Text to process"
     )
 
+    parser.add_argument(
+        "--few-shot",
+        action="store_true",
+        help="Use examples for formal rewriting"
+    )
     args = parser.parse_args()
 
     selected_prompt = SYSTEM_PROMPTS[args.mode]
+
+    if args.few_shot and args.mode == "rewrite-formal":
+        selected_prompt += "\n\n" + FEW_SHOT_EXAMPLES
 
     response = client.models.generate_content(
         model="gemini-3.8-flash",
