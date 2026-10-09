@@ -90,7 +90,25 @@ def main():
         }
     )
 
+    
     print(response.text)
+
+    
+    usage = response.usage_metadata
+
+    if usage:
+        input_tokens = usage.prompt_token_count or 0
+        output_tokens = usage.candidates_token_count or 0
+        thought_tokens = usage.thoughts_token_count or 0
+        total_tokens = usage.total_token_count or 0
+
+        print("\n--- Token Usage ---")
+        print(f"Input tokens: {input_tokens}")
+        print(f"Output tokens: {output_tokens}")
+        print(f"Thought tokens: {thought_tokens}")
+        print(f"Total tokens reported by Gemini: {total_tokens}")
+    else:
+        print("\nToken usage metadata is unavailable.")
 
 
 if __name__ == "__main__":

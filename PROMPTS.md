@@ -89,3 +89,36 @@ Both outputs are professional and preserve the user's intended meaning. The word
 ### Key Learning
 
 Few-shot prompting provides examples of the desired input-output pattern. It can guide the model's response style, while the `--few-shot` flag allows users to enable or disable the examples.
+
+## 5. Token Usage Logging
+
+### Purpose
+
+The CLI displays token-usage metadata returned by the Gemini API after generating a response. This helps users inspect the model's reported token consumption.
+
+### Metrics Logged
+
+* **Input tokens:** Tokens used for the prompt.
+* **Output tokens:** Tokens generated in the response.
+* **Thought tokens:** Additional token usage attributed to model reasoning, when reported.
+* **Total tokens:** The total usage reported by Gemini.
+
+### Implementation
+
+The program reads `response.usage_metadata` and extracts the available token counts. It uses fallback values for optional fields and displays a message if usage metadata is unavailable.
+
+### Testing
+
+The feature was tested using the `rewrite-formal` mode. The CLI successfully displayed the rewritten text and the token-usage metadata returned by Gemini.
+
+Example observed output:
+
+```text
+--- Token Usage ---
+Input tokens: 66
+Output tokens: 9
+Thought tokens: 477
+Total tokens reported by Gemini: 552
+```
+
+Token counts can vary between requests. The values above are an example from one successful run, not fixed expected values.
